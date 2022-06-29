@@ -7,6 +7,8 @@ import cors from 'cors';
 import connect from './db.js';
 import mongo from 'mongodb';
 import auth from './auth';
+import py from './image_validation/py.js';
+import p1 from './image_validation/new.js';
 
 const app = express(); // instanciranje aplikacije
 const port = 3000; // port na kojem će web server slušati
@@ -323,7 +325,6 @@ app.patch('/posts/:postId/comments/:commentId/replies/:replyId', async (req, res
     }
 });
 
-
 app.get('/posts/:id', [auth.verify], async (req, res) => {
     let id = req.params.id;
     let db = await connect();
@@ -331,6 +332,8 @@ app.get('/posts/:id', [auth.verify], async (req, res) => {
 
     res.json(document);
 });
+
+
 
 app.get('/posts', [auth.verify], async (req, res) => {
     let db = await connect();
@@ -366,6 +369,17 @@ app.get('/posts', [auth.verify], async (req, res) => {
     let results = await cursor.toArray();
 
     res.json(results);
+});
+
+
+//validate images - dummy route
+app.put('/posts', async (req, res) => {
+    
+    let blob = req.params.blob;
+    //console.log(py.pyMethod());
+    await console.log(p1.main());
+
+    res.json(blob);
 });
 
 
