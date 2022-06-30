@@ -16,7 +16,7 @@ module.exports = async function spawner(){
         // else store.set('isBoot', false)
         // console.log(store.get('isBoot'))
         // console.log(process.cwd())
-
+        
         process.chdir('./src/image_validation')
     
         if (process.cwd().includes('\image_validation')){

@@ -56,6 +56,6 @@ for i, d in enumerate(dets):
 
 # if len(shapes) > 0: return True
 # else: return False
-
+print('pyy')
 if len(shapes) > 0: print(True)
 else: print(False)

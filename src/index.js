@@ -378,7 +378,8 @@ app.put('/posts',[auth.verify], async (req, res) => {
     let blob = req.params.blob;
     
     let resp = await spawner();
-    console.log('ra', resp)
+    console.log('response: ', resp)
+
     res.json(Boolean(resp));
 });
 
