@@ -2,13 +2,13 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import storage from './memory_storage.js';
 import cors from 'cors';
 import connect from './db.js';
 import mongo from 'mongodb';
 import auth from './auth';
-import py from './image_validation/py.js';
-import p1 from './image_validation/new.js';
+import spawner from './image_validation/spawner.js';
+//import p1 from './image_validation/run_spawner.js';
+
 
 const app = express(); // instanciranje aplikacije
 const port = 3000; // port na kojem će web server slušati
@@ -376,10 +376,10 @@ app.get('/posts', [auth.verify], async (req, res) => {
 app.put('/posts', async (req, res) => {
     
     let blob = req.params.blob;
-    //console.log(py.pyMethod());
-    await console.log(p1.main());
 
-    res.json(blob);
+    let resp = await spawner();
+
+    res.json(resp);
 });
 
 

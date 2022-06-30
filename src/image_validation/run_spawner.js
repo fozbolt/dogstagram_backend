@@ -2,7 +2,13 @@
 
 https://stackoverflow.com/questions/1880198/how-to-execute-shell-command-in-javascript
 
+
+Namjena: automatski pokrenuti py.js preko terminala jer prije nije htjelo raditi ako se ne pokrene preko terminala, sada je ovo deprecated
+
 */
+
+
+
 
 const { exec } = require('child_process')
 
@@ -28,7 +34,7 @@ export default{
   },
   
   async main() {
-    let { stdout } = await this.sh('node src/image_validation/py.js');
+    let { stdout } = await this.sh('node src/image_validation/spawner.js');
     for (let line of stdout.split('\n')) {
       console.log(`ls: ${line}`);
     }
