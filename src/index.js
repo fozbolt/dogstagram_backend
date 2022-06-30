@@ -373,13 +373,13 @@ app.get('/posts', [auth.verify], async (req, res) => {
 
 
 //validate images - dummy route
-app.put('/posts', async (req, res) => {
+app.put('/posts',[auth.verify], async (req, res) => {
     
     let blob = req.params.blob;
-
+    
     let resp = await spawner();
-
-    res.json(resp);
+    console.log('ra', resp)
+    res.json(Boolean(resp));
 });
 
 
