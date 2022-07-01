@@ -1,6 +1,9 @@
 
+import {PythonShell} from 'python-shell';
+
 module.exports = async function spawner(base64_img){
     const { spawn } = require('child_process');
+    
     //const store = require('store-js')
 
     //da se ne pokreće prilikom npm run serve
@@ -20,30 +23,42 @@ module.exports = async function spawner(base64_img){
         process.chdir('./src/image_validation')
     
         if (process.cwd().includes('\image_validation')){
-            const command = await spawn('python', ["./dog_detection.py", 1]);
-            let result = '';
-        
-            await command.stdout.on('data', async function (data) {
-            result += data.toString();
+         
+            let pyshell = new PythonShell('dog_detection.py', { mode: 'text' });
+
+            // sends a message to the Python script via stdin
+            pyshell.send(base64_img);
+            let result = undefined
+
+            pyshell.on('message', function (message) {
+            // received a message sent from the Python script (a simple "print" statement)
+            console.log(message) //ako zelimo da ispisuje/vraca svaki print iz pythona, a ne samo zadnji
+            result = message
             });
 
-            //loša logika, ali neka bude za sad
+            // end the input stream and allow the process to exit
             return new Promise((res, rej) => {
-                command.stdout.on('end', async function(code){
-                    //console.log('output: ' + result);
-                    //console.log(`Exit code is: ${code}`);
-                    process.chdir('../../')
+                pyshell.end(function (err,code,signal) {
+                    if (err) throw err;
+                    //console.log('The exit code was: ' + code);
+                    //console.log('The exit signal was: ' + signal);
+                    //console.log('finished');
 
-                    res(result);
-                })
-            });
+
+                    process.chdir('../../')
+                    res(result)
+
+                });
+            })
+
+            
 
             //store.set('isBoot', true)            
         }
     }
-    catch{
+    catch(e){
         process.chdir('../../')
-        console.log('unknown error accured')
+        console.log(e)
     }
   
 }

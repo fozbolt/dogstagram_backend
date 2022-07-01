@@ -387,7 +387,11 @@ app.put('/posts',[auth.verify], async (req, res) => {
     let resp = await spawner(base64_img);
     console.log('response: ', resp)
 
-    res.json(Boolean(resp));
+    //pyboolean to js - bez stogog formata (===) i nazalost u stringu
+    if (resp.toLowerCase() == 'true' ) res.json(true);
+    else res.json(false);
+
+    
 });
 
 
