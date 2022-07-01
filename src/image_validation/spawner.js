@@ -1,5 +1,5 @@
 
-module.exports = async function spawner(){
+module.exports = async function spawner(base64_img){
     const { spawn } = require('child_process');
     //const store = require('store-js')
 
@@ -16,11 +16,11 @@ module.exports = async function spawner(){
         // else store.set('isBoot', false)
         // console.log(store.get('isBoot'))
         // console.log(process.cwd())
-        
+
         process.chdir('./src/image_validation')
     
         if (process.cwd().includes('\image_validation')){
-            const command = await spawn('python', ["./dog_detection.py", 1, 2]);
+            const command = await spawn('python', ["./dog_detection.py", 1]);
             let result = '';
         
             await command.stdout.on('data', async function (data) {
@@ -32,7 +32,7 @@ module.exports = async function spawner(){
                 command.stdout.on('end', async function(code){
                     //console.log('output: ' + result);
                     //console.log(`Exit code is: ${code}`);
-                    process.chdir('../')
+                    process.chdir('../../')
 
                     res(result);
                 })
@@ -41,7 +41,10 @@ module.exports = async function spawner(){
             //store.set('isBoot', true)            
         }
     }
-    catch{console.log('unknown error accured')}
-
+    catch{
+        process.chdir('../../')
+        console.log('unknown error accured')
+    }
+  
 }
 

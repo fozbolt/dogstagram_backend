@@ -7,6 +7,7 @@ import connect from './db.js';
 import mongo from 'mongodb';
 import auth from './auth';
 import spawner from './image_validation/spawner.js';
+import bodyParser from 'body-parser'
 //import p1 from './image_validation/run_spawner.js';
 
 
@@ -14,7 +15,14 @@ const app = express(); // instanciranje aplikacije
 const port = 3000; // port na kojem će web server slušati
 
 app.use(cors());
-app.use(express.json()); // automatski dekodiraj JSON poruke
+//app.use(express.json()); // automatski dekodiraj JSON poruke
+
+//dodano radi "payload to large" kod slanja base64
+app.use(bodyParser.json({limit: '50mb', extended: true}));
+app.use(bodyParser.urlencoded({limit: "50mb", extended: true, parameterLimit:50000}));
+app.use(bodyParser.text({ limit: '200mb' }));
+
+
 
 app.get('/tajna', [auth.verify], async (req, res) => {
     // nakon što se izvrši auth.verify middleware, imamo dostupan req.jwt objekt
@@ -374,10 +382,9 @@ app.get('/posts', [auth.verify], async (req, res) => {
 
 //validate images - dummy route
 app.put('/posts',[auth.verify], async (req, res) => {
+    let base64_img = req.body.img
     
-    let blob = req.params.blob;
-    
-    let resp = await spawner();
+    let resp = await spawner(base64_img);
     console.log('response: ', resp)
 
     res.json(Boolean(resp));
