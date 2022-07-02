@@ -1,7 +1,6 @@
 import mongo from 'mongodb';
 
 let connection_string = 'mongodb+srv://admin:admin@cluster1.jniy7.mongodb.net/?retryWrites=true&w=majority';
-//let connection_string = 'localhost:3000/fipugram'; 
 
 let client = new mongo.MongoClient(connection_string, {
     useNewUrlParser: true,
@@ -22,7 +21,7 @@ export default () => {
                     reject('Spajanje na bazu nije uspjelo:' + err);
                 } else {
                     console.log('Database connected successfully!');
-                    db = client.db('fipugram');
+                    db = client.db('dogstagram');
                     resolve(db);
                 }
             });
