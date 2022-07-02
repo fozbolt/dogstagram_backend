@@ -2,17 +2,27 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import storage from './memory_storage.js';
 import cors from 'cors';
 import connect from './db.js';
 import mongo from 'mongodb';
 import auth from './auth';
+import spawner from './image_validation/spawner.js';
+import bodyParser from 'body-parser'
+//import p1 from './image_validation/run_spawner.js';
+
 
 const app = express(); // instanciranje aplikacije
 const port = 3000; // port na kojem će web server slušati
 
 app.use(cors());
-app.use(express.json()); // automatski dekodiraj JSON poruke
+//app.use(express.json()); // automatski dekodiraj JSON poruke
+
+//dodano radi "payload to large" kod slanja base64
+app.use(bodyParser.json({limit: '50mb', extended: true}));
+app.use(bodyParser.urlencoded({limit: "50mb", extended: true, parameterLimit:50000}));
+app.use(bodyParser.text({ limit: '200mb' }));
+
+
 
 app.get('/tajna', [auth.verify], async (req, res) => {
     // nakon što se izvrši auth.verify middleware, imamo dostupan req.jwt objekt
@@ -64,23 +74,23 @@ app.post('/register', async (req, res) => {
     }
 });
 
-let primjer_middleware = (res, req, next) => {
-    console.log('Ja se izvršavam prije ostatka handlera za rutu');
-    res.varijabla_1 = 'OK';
-    next();
-};
-let primjer_middleware_2 = (res, req, next) => {
-    console.log('I ja se isto izvršavam prije ostatka handlera za rutu');
-    res.varijabla_2 = 'isto OK';
-    next();
-};
-app.get('/primjer', [primjer_middleware, primjer_middleware_2], (req, res) => {
-    console.log('.. a tek onda se ja izvršavam.');
-    console.log(req.varijabla_1);
-    console.log(req.varijabla_2);
+// let primjer_middleware = (res, req, next) => {
+//     console.log('Ja se izvršavam prije ostatka handlera za rutu');
+//     res.varijabla_1 = 'OK';
+//     next();
+// };
+// let primjer_middleware_2 = (res, req, next) => {
+//     console.log('I ja se isto izvršavam prije ostatka handlera za rutu');
+//     res.varijabla_2 = 'isto OK';
+//     next();
+// };
+// app.get('/primjer', [primjer_middleware, primjer_middleware_2], (req, res) => {
+//     console.log('.. a tek onda se ja izvršavam.');
+//     console.log(req.varijabla_1);
+//     console.log(req.varijabla_2);
 
-    res.send('OK');
-});
+//     res.send('OK');
+// });
 
 app.patch('/posts/:id', async (req, res) => {
     let doc = req.body;
@@ -212,6 +222,9 @@ app.post('/posts/:postId/comments', async (req, res) => {
     // datume je ispravnije definirati na backendu
     doc.posted_at = Date.now();
 
+    // inicijalizacija praznog arraya zbog search filtera na change reply
+    doc.replies = [];
+
     let result = await db.collection('posts').updateOne(
         { _id: mongo.ObjectId(postId) },
         {
@@ -233,26 +246,81 @@ app.post('/posts/:postId/comments', async (req, res) => {
     }
 });
 
-//add reply
+
+//change comment AND add reply
+//dodoati na sve ovakve rute i middleware [auth.verify]
+//saljem u body-u comment id i u paramatru/queryu - ispraviti - za sad korisnim onaj iz body-a --ovo se odnosi na sve rute vezane uz komentare
 app.patch('/posts/:postId/comments/:commentId', async (req, res) => {
     let db = await connect();
     let doc = req.body;
     let postId = req.params.postId;
     let commentId = req.params.commentId;
-   
-    // u mongu dokumenti unutar postojećih dokumenata ne dobivaju
-    // automatski novi _id, pa ga moramo sami dodati
+    
     doc._id = mongo.ObjectId();
+    let result = undefined;
+
+    if (doc.type==='main'){
+        delete doc.type
+        //cisto da ne bude da su komentari stariji od posta
+        //doc.posted_at = Date.now();
+
+        result = await db.collection('posts').updateOne(
+        
+            { _id: mongo.ObjectId(postId), comments: {$elemMatch: {_id: mongo.ObjectId(commentId)}} },
+            {              
+                //ovo se da i direktnije/automatski kad posaljemo objekt da izmijeni sva ona polja koja smo poslali u tom objektu
+                $set: { "comments.$.comment": doc.comment },
+            });    
+    }   
+    else if (doc.type==='reply'){
+        delete doc.type
+        result = await db.collection('posts').updateOne(
+      
+            { _id: mongo.ObjectId(postId), comments: {$elemMatch: {_id: mongo.ObjectId(commentId)}} },
+            {              
+                $push: { "comments.$.replies": doc },
+            });
+    }
+    
+
+    if (result.modifiedCount == 1) {
+        res.json({
+            status: 'success',
+            id: doc._id,
+        });
+    } else {
+        res.status(500).json({
+            status: 'fail',
+        });
+    }
+});
+
+
+
+
+
+//change reply
+app.patch('/posts/:postId/comments/:commentId/replies/:replyId', async (req, res) => {
+    let db = await connect();
+    let doc = req.body;
+    let postId = req.params.postId;
+    let commentId = req.params.commentId;
+    let replyId = req.params.replyId;
+  
+    doc._id = mongo.ObjectId(replyId);
     doc.posted_at = Date.now();
 
+
     let result = await db.collection('posts').updateOne(
-      
-        { _id: mongo.ObjectId(postId), comments: {$elemMatch: {_id: mongo.ObjectId(commentId)}} },
-        {
-            
-            $push: { "comments.$.replies": doc },
-        }
+
+        // "comments.$[].replies.$[category].username" za izmjenu jednog atribura u objektu
+
+        { _id: mongo.ObjectId(postId)},
+        {$set: {"comments.$[].replies.$[category]": doc}},
+        { arrayFilters: [ {"category._id": mongo.ObjectId(replyId)} ] }
+        
     );
+  
     if (result.modifiedCount == 1) {
         res.json({
             status: 'success',
@@ -272,6 +340,8 @@ app.get('/posts/:id', [auth.verify], async (req, res) => {
 
     res.json(document);
 });
+
+
 
 app.get('/posts', [auth.verify], async (req, res) => {
     let db = await connect();
@@ -308,5 +378,54 @@ app.get('/posts', [auth.verify], async (req, res) => {
 
     res.json(results);
 });
+
+
+//validate images - dummy route
+app.put('/posts',[auth.verify], async (req, res) => {
+    let base64_img = req.body.img
+    
+    let resp = await spawner(base64_img);
+    console.log('response: ', resp)
+
+    //pyboolean to js - bez stogog formata (===) i nazalost u stringu
+    if (resp.toLowerCase() == 'true' ) res.json(true);
+    else res.json(false);
+
+    
+});
+
+
+//add reply - spojen s change comment zbog identicne rute
+// app.patch('/posts/:postId/comments/:commentId', async (req, res) => {
+//     let db = await connect();
+//     let doc = req.body;
+//     let postId = req.params.postId;
+//     let commentId = req.params.commentId;
+//     console.log('serveeeeeeeeeeeeeeeeeeeee');
+//     // u mongu dokumenti unutar postojećih dokumenata ne dobivaju
+//     // automatski novi _id, pa ga moramo sami dodati
+//     doc._id = mongo.ObjectId();
+//     doc.posted_at = Date.now();
+
+//     let result = await db.collection('posts').updateOne(
+      
+//         { _id: mongo.ObjectId(postId), comments: {$elemMatch: {_id: mongo.ObjectId(commentId)}} },
+//         {
+            
+//             $push: { "comments.$.replies": doc },
+//         }
+//     );
+//     if (result.modifiedCount == 1) {
+//         res.json({
+//             status: 'success',
+//             id: doc._id,
+//         });
+//     } else {
+//         res.status(500).json({
+//             status: 'fail',
+//         });
+//     }
+// });
+
 
 app.listen(port, () => console.log(`Slušam na portu ${port}!`));
